@@ -7,3 +7,6 @@ app.include_router(risk.router, prefix="/risk", tags=["Risk"])
 app.include_router(decision.router, prefix="/decision", tags=["Decision"])
 app.include_router(credit.router, prefix="/credit", tags=["Credit"])
 app.include_router(explain.router, prefix="/explain", tags=["Explain"])
+@app.get("/health")
+def health():
+    return {"status": "ok"}
