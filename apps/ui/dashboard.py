@@ -13,89 +13,60 @@ st.sidebar.header("🏢 Business Profile")
 age = st.sidebar.number_input("Years in Business", min_value=1, max_value=100, value=5)
 employees = st.sidebar.number_input("Number of Employees", min_value=1, max_value=1000, value=20)
 is_franchise = st.sidebar.selectbox("Franchise?", [0, 1], format_func=lambda x: "Yes" if x==1 else "No")
-urban_rural = st.sidebar.selectbox("Location Type", [1, 2, 0], format_func=lambda x: {1: "Urban", 2: "Rural", 0: "Other"}[x])
+from services.database import SessionLocal, LoanAssessment
+from sqlalchemy import desc
 
-st.sidebar.header("📊 Financial Metrics")
-revenue = st.sidebar.number_input("Annual Revenue ($)", min_value=0.0, value=500000.0, step=10000.0)
-profit = st.sidebar.number_input("Annual Net Profit ($)", min_value=-1000000.0, value=50000.0, step=5000.0)
+st.set_page_config(page_title="MSME Credit Risk Portal - India", layout="wide")
 
-st.sidebar.header("🏗️ Assets & Valuation")
-fixed_assets = st.sidebar.number_input("Fixed Assets Valuation ($)", min_value=0.0, value=200000.0)
-inventory = st.sidebar.number_input("Inventory Value ($)", min_value=0.0, value=50000.0)
-valuation = st.sidebar.number_input("Total Business Valuation ($)", min_value=0.0, value=1000000.0)
-existing_debt = st.sidebar.number_input("Existing Debt ($)", min_value=0.0, value=100000.0)
+st.title("🏦 Enterprise MSME Credit Assessment")
+st.write("Localized for Indian Banking Standards (RBI/MSME Guidelines)")
 
-st.sidebar.header("💰 Loan Request")
-requested_amount = st.sidebar.number_input("Requested Loan Amount ($)", min_value=0.0, value=150000.0)
+# Sidebar for analysis history
+st.sidebar.header("📜 Recent Assessments")
+db = SessionLocal()
+history = db.query(LoanAssessment).order_by(desc(LoanAssessment.timestamp)).limit(5).all()
+for h in history:
+    status = "✅" if h.is_approved else "❌"
+    st.sidebar.write(f"{status} {h.business_id} - ₹{h.final_limit:.1f}L")
+db.close()
 
-# Main Dashboard
-col1, col2 = st.columns([1, 1])
+col1, col2 = st.columns([1, 1.5])
 
 with col1:
-    st.subheader("Assessment Context")
-    st.info(f"""
-    **Business Age:** {age} years  
-    **Profit Margin:** {(profit/revenue*100):.2f}%  
-    **Debt-to-Valuation:** {(existing_debt/valuation*100):.2f}%
-    """)
-
-if st.button("🚀 Run Credit Risk Analysis"):
-    # Prepare API Request
-    payload = {
-        "age_years": int(age),
-        "employees": int(employees),
-        "is_franchise": int(is_franchise),
-        "urban_rural": int(urban_rural),
-        "annual_revenue": float(revenue),
-        "net_profit": float(profit),
-        "fixed_assets": float(fixed_assets),
-        "inventory_value": float(inventory),
-        "total_assets": float(fixed_assets + inventory + (revenue * 0.1)),
-        "valuation": float(valuation),
-        "existing_debt": float(existing_debt),
-        "requested_amount": float(requested_amount)
-    }
+    st.subheader("Business Profile")
+    b_id = st.text_input("Business ID", value="MSME_001")
+    age = st.number_input("Business Vintage (Years)", min_value=1, max_value=50, value=3)
     
-    try:
-        response = requests.post("http://localhost:8000/predict", json=payload)
-        if response.status_code == 200:
-            result = response.json()
-            
-            with col2:
-                st.subheader("Decision Results")
-                
-                if result['is_approved']:
-                    st.success("✅ **STATUS: APPROVED**")
-                else:
-                    st.error("❌ **STATUS: REJECTED**")
-                
-                # Metrics
-                m1, m2 = st.columns(2)
-                m1.metric("Approval Prob.", f"{result['approval_probability']*100:.1f}%")
-                m2.metric("Final Limit", f"${result['final_loan_recommendation']:,.0f}")
-                
-                st.divider()
-                st.subheader("🔍 Explainability (SHAP)")
-                st.write("Top factors influencing this specific decision:")
-                
-                # SHAP Visualization
-                fi = result['feature_importance']
-                fi_df = pd.DataFrame(list(fi.items()), columns=['Feature', 'SHAP Value'])
-                fi_df = fi_df.sort_values(by='SHAP Value', key=abs, ascending=False).head(8)
-                
-                st.bar_chart(fi_df, x='Feature', y='SHAP Value')
-                st.caption("Positive values increase approval chance, negative values decrease it.")
-                
-                st.divider()
-                st.write("**Financial Summary:**")
-                st.write(f"- ML Recommended Limit: ${result['recommended_limit']:,.0f}")
-                st.write(f"- Asset-Based Max Cap: ${result['max_allowable_loan']:,.0f}")
-                st.write(f"- **Decision Logic:** {result['remarks']}")
-                
-        else:
-            st.error(f"API Error: {response.text}")
-    except Exception as e:
-        st.error(f"Could not connect to Prediction API. Make sure the backend is running. Error: {e}")
+    st.divider()
+    st.subheader("Compliance Check")
+    udyam = st.checkbox("Udyam Registered?", value=True)
+    gst = st.checkbox("GST Compliant?", value=True)
+    
+    st.divider()
+    st.subheader("Credit Health")
+    cibil = st.slider("Business CIBIL Rank", 300, 900, 750)
+    p_cibil = st.slider("Promoter Personal CIBIL", 300, 900, 720)
+    
+    st.divider()
+    st.subheader("Financials (₹ Lakhs)")
+    revenue = st.number_input("Annual Turnover", value=50.0)
+    profit = st.number_input("Net Profit", value=8.5)
+    assets = st.number_input("Total Fixed Assets", value=30.0)
+    debt = st.number_input("Existing Debt", value=5.0)
+    requested = st.number_input("Loan Amount Requested", value=15.0)
 
+    payload = {
+        "business_id": b_id,
+        "age_years": age,
+        "annual_revenue": revenue,
+        "net_profit": profit,
+        "total_assets": assets,
+        "existing_debt": debt,
+        "cibil_score": cibil,
+        "promoter_cibil": p_cibil,
+        "udyam_registered": udyam,
+        "gst_compliant": gst,
+        "requested_amount": requested
+    }
 st.markdown("---")
 st.caption("Enterprise MSME Credit Risk Analysis")
