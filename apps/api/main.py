@@ -11,11 +11,31 @@ sys.path.append(os.getcwd())
 
 app = FastAPI(title="MSME Credit Risk API")
 
-from services.database import SessionLocal, LoanAssessment, init_db
+from services.database import SessionLocal, LoanAssessment, init_db, get_db
 from sqlalchemy.orm import Session
 from fastapi import Depends
+import joblib
 
 init_db() # Run migrations
+
+# Globals to store models
+MODELS = {}
+
+@app.on_event("startup")
+def load_models():
+    """Load models on startup."""
+    try:
+        MODELS['classifier'] = joblib.load("models/saved/classifier.joblib")
+        MODELS['regressor'] = joblib.load("models/saved/regressor.joblib")
+        MODELS['pipeline'] = joblib.load("models/saved/pipeline.joblib")
+        MODELS['explainer'] = joblib.load("models/saved/explainer.joblib")
+        print("Models and SHAP explainer loaded successfully.")
+    except Exception as e:
+        print(f"Error loading models: {e}. Ensure training is done.")
+
+@app.get("/health")
+def health():
+    return {"status": "healthy"}
 
 class LoanRequest(BaseModel):
     business_id: str = "MSME_0001"
@@ -31,7 +51,7 @@ class LoanRequest(BaseModel):
     requested_amount: float
 
 @app.post("/predict")
-def predict(request: LoanRequest, db: Session = Depends(SessionLocal)):
+def predict(request: LoanRequest, db: Session = Depends(get_db)):
     if not MODELS:
         raise HTTPException(status_code=503, detail="Models not loaded")
     

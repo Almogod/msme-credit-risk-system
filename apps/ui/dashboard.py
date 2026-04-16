@@ -1,18 +1,6 @@
 import streamlit as st
 import requests
-import json
 import pandas as pd
-
-st.set_page_config(page_title="MSME Credit Risk Portal", layout="wide")
-
-st.title("🏦 MSME Credit Risk Assessment Portal")
-st.markdown("---")
-
-# Sidebar for Business Details
-st.sidebar.header("🏢 Business Profile")
-age = st.sidebar.number_input("Years in Business", min_value=1, max_value=100, value=5)
-employees = st.sidebar.number_input("Number of Employees", min_value=1, max_value=1000, value=20)
-is_franchise = st.sidebar.selectbox("Franchise?", [0, 1], format_func=lambda x: "Yes" if x==1 else "No")
 from services.database import SessionLocal, LoanAssessment
 from sqlalchemy import desc
 
@@ -23,12 +11,15 @@ st.write("Localized for Indian Banking Standards (RBI/MSME Guidelines)")
 
 # Sidebar for analysis history
 st.sidebar.header("📜 Recent Assessments")
-db = SessionLocal()
-history = db.query(LoanAssessment).order_by(desc(LoanAssessment.timestamp)).limit(5).all()
-for h in history:
-    status = "✅" if h.is_approved else "❌"
-    st.sidebar.write(f"{status} {h.business_id} - ₹{h.final_limit:.1f}L")
-db.close()
+try:
+    db = SessionLocal()
+    history = db.query(LoanAssessment).order_by(desc(LoanAssessment.timestamp)).limit(5).all()
+    for h in history:
+        status = "✅" if h.is_approved else "❌"
+        st.sidebar.write(f"{status} {h.business_id} - ₹{h.final_limit:.1f}L")
+    db.close()
+except Exception as e:
+    st.sidebar.error("Database connection failed. Ensure the server is initialized.")
 
 col1, col2 = st.columns([1, 1.5])
 
@@ -68,5 +59,43 @@ with col1:
         "gst_compliant": gst,
         "requested_amount": requested
     }
+
+    if st.button("🚀 Run Risk Assessment"):
+        try:
+            response = requests.post("http://localhost:8000/predict", json=payload)
+            if response.status_code == 200:
+                result = response.json()
+                
+                with col2:
+                    st.subheader("Decision Results")
+                    
+                    if result['is_approved']:
+                        st.success(f"✅ **STATUS: {result['remarks']}**")
+                    else:
+                        st.error(f"❌ **STATUS: {result['remarks']}**")
+                    
+                    # Metrics
+                    m1, m2 = st.columns(2)
+                    m1.metric("Approval Prob.", f"{result['approval_probability']*100:.1f}%")
+                    m2.metric("Final Limit", f"₹{result['final_loan_recommendation']:.2f} L")
+                    
+                    if result['feature_importance']:
+                        st.divider()
+                        st.subheader("🔍 Explainability (SHAP)")
+                        fi = result['feature_importance']
+                        fi_df = pd.DataFrame(list(fi.items()), columns=['Feature', 'SHAP Value'])
+                        fi_df = fi_df.sort_values(by='SHAP Value', key=abs, ascending=False).head(8)
+                        st.bar_chart(fi_df, x='Feature', y='SHAP Value')
+                        st.caption("Positive values increase approval chance, negative decrease it.")
+
+                    st.divider()
+                    st.write("**Financial Summary:**")
+                    st.write(f"- ML Limit: ₹{result['recommended_limit']:.2f} L")
+                    st.write(f"- Asset Cap: ₹{result['max_allowable_loan']:.2f} L")
+            else:
+                st.error(f"API Error: {response.text}")
+        except Exception as e:
+            st.error(f"Could not connect to Prediction API. Make sure the backend is running. Error: {e}")
+
 st.markdown("---")
-st.caption("Enterprise MSME Credit Risk Analysis")
+st.caption("Enterprise MSME Credit Risk Analysis - Powered by SHAP & XGBoost")
