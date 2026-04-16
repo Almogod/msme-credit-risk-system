@@ -43,6 +43,7 @@ class LoanRequest(BaseModel):
     annual_revenue: float # In Lakhs
     net_profit: float
     total_assets: float
+    valuation: float
     existing_debt: float
     cibil_score: int
     promoter_cibil: int

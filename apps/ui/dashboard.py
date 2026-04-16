@@ -43,6 +43,7 @@ with col1:
     revenue = st.number_input("Annual Turnover", value=50.0)
     profit = st.number_input("Net Profit", value=8.5)
     assets = st.number_input("Total Fixed Assets", value=30.0)
+    valuation = st.number_input("Current Valuation", value=60.0)
     debt = st.number_input("Existing Debt", value=5.0)
     requested = st.number_input("Loan Amount Requested", value=15.0)
 
@@ -52,6 +53,7 @@ with col1:
         "annual_revenue": revenue,
         "net_profit": profit,
         "total_assets": assets,
+        "valuation": valuation,
         "existing_debt": debt,
         "cibil_score": cibil,
         "promoter_cibil": p_cibil,
