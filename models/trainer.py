@@ -7,6 +7,7 @@ from sklearn.metrics import accuracy_score, mean_absolute_error, r2_score
 import joblib
 import os
 import sys
+import shap
 
 # Add project root to path for local imports
 sys.path.append(os.getcwd())
@@ -15,7 +16,7 @@ from features.feature_pipeline import FeaturePipeline
 
 def train_models():
     """
-    Trains the Loan Approval Classifier and Credit Limit Regressor.
+    Trains the Loan Approval Classifier and Credit Limit Regressor, including SHAP.
     """
     if not os.path.exists("data/raw/msme_loans.csv"):
         print("Data not found. Run services/data_loader.py first.")
@@ -50,12 +51,16 @@ def train_models():
     )
     clf.fit(X_train, y_class_train)
     
+    # 4. Generate SHAP Explainer
+    print("Generating SHAP Explainer...")
+    explainer = shap.TreeExplainer(clf)
+    
     # Eval
     y_pred = clf.predict(X_test)
     acc = accuracy_score(y_class_test, y_pred)
     print(f"Approval Model Accuracy: {acc:.4f}")
     
-    # 4. Train Credit Limit Model (Random Forest)
+    # 5. Train Credit Limit Model (Random Forest)
     print("Training Credit Limit Model...")
     reg = RandomForestRegressor(n_estimators=100, random_state=42)
     reg.fit(X_train, y_reg_train)
@@ -66,13 +71,17 @@ def train_models():
     r2 = r2_score(y_reg_test, y_reg_pred)
     print(f"Credit Limit Model - MAE: {mae:.2f}, R2: {r2:.4f}")
     
-    # 5. Save Models
+    # 6. Save Models & Explainer
     os.makedirs("models/saved", exist_ok=True)
     joblib.dump(clf, "models/saved/classifier.joblib")
     joblib.dump(reg, "models/saved/regressor.joblib")
     joblib.dump(pipeline, "models/saved/pipeline.joblib")
+    joblib.dump(explainer, "models/saved/explainer.joblib")
     
-    print("\nModels and pipeline saved to models/saved/")
+    print("\nModels, pipeline, and SHAP explainer saved to models/saved/")
+
+if __name__ == "__main__":
+    train_models()
 
 if __name__ == "__main__":
     train_models()

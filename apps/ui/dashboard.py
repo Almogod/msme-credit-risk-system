@@ -75,7 +75,19 @@ if st.button("🚀 Run Credit Risk Analysis"):
                 m2.metric("Final Limit", f"${result['final_loan_recommendation']:,.0f}")
                 
                 st.divider()
-                st.write("**Detailed Breakdown:**")
+                st.subheader("🔍 Explainability (SHAP)")
+                st.write("Top factors influencing this specific decision:")
+                
+                # SHAP Visualization
+                fi = result['feature_importance']
+                fi_df = pd.DataFrame(list(fi.items()), columns=['Feature', 'SHAP Value'])
+                fi_df = fi_df.sort_values(by='SHAP Value', key=abs, ascending=False).head(8)
+                
+                st.bar_chart(fi_df, x='Feature', y='SHAP Value')
+                st.caption("Positive values increase approval chance, negative values decrease it.")
+                
+                st.divider()
+                st.write("**Financial Summary:**")
                 st.write(f"- ML Recommended Limit: ${result['recommended_limit']:,.0f}")
                 st.write(f"- Asset-Based Max Cap: ${result['max_allowable_loan']:,.0f}")
                 st.write(f"- **Decision Logic:** {result['remarks']}")

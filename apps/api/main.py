@@ -35,7 +35,8 @@ def load_models():
         MODELS['classifier'] = joblib.load("models/saved/classifier.joblib")
         MODELS['regressor'] = joblib.load("models/saved/regressor.joblib")
         MODELS['pipeline'] = joblib.load("models/saved/pipeline.joblib")
-        print("Models loaded successfully.")
+        MODELS['explainer'] = joblib.load("models/saved/explainer.joblib")
+        print("Models and SHAP explainer loaded successfully.")
     except Exception as e:
         print(f"Error loading models: {e}. Ensure training is done.")
 
@@ -58,11 +59,15 @@ def predict(request: LoanRequest):
     prob_paid = float(MODELS['classifier'].predict_proba(features)[0][1])
     approved = prob_paid > 0.7 # Threshold for approval
     
+    # SHAP Explainability
+    shap_values = MODELS['explainer'].shap_values(features)
+    # SHAP values for the 'Paid' class (index 1)
+    feature_importance = dict(zip(features.columns, shap_values[0].tolist()))
+    
     # Limit Prediction
     recommended_limit = float(MODELS['regressor'].predict(features)[0])
     
     # Asset-based max loan (Valuation Logic)
-    # Rules: Max loan = 40% of valuation OR 80% of fixed assets (whichever is higher) minus debt
     valuation_cap = request.valuation * 0.4 - request.existing_debt
     asset_cap = request.fixed_assets * 0.8 - request.existing_debt
     max_loan_cap = max(valuation_cap, asset_cap, 0)
@@ -76,6 +81,7 @@ def predict(request: LoanRequest):
         "recommended_limit": recommended_limit,
         "max_allowable_loan": max_loan_cap,
         "final_loan_recommendation": final_limit if approved else 0,
+        "feature_importance": feature_importance,
         "remarks": "Loan approved based on cash flow and asset valuation." if approved else "Loan rejected due to high risk profile."
     }
 
