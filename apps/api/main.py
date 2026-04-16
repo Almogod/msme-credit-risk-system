@@ -45,9 +45,11 @@ def load_models():
 class LoanRequest(BaseModel):
     business_id: str = "MSME_0001"
     age_years: int
+    employees: int = 5
     annual_revenue: float
     net_profit: float
     total_assets: float
+    fixed_assets: float
     valuation: float
     existing_debt: float
     cibil_score: int
@@ -73,7 +75,7 @@ def predict(request: LoanRequest, db: Session = Depends(get_db)):
     input_dict['interest_expense'] = request.existing_debt * 0.12
     input_dict['principal_repayment'] = request.existing_debt * 0.10
     input_dict['ebitda'] = request.net_profit + input_dict['interest_expense'] + (request.total_assets * 0.05)
-    input_dict['inventory_value'] = request.total_assets * 0.2
+    input_dict['inventory_value'] = request.total_assets - request.fixed_assets
     
     input_df = pd.DataFrame([input_dict])
     features = load_and_process(input_df) # Uses modular build_features

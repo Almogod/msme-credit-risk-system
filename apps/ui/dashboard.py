@@ -27,6 +27,7 @@ with col1:
     st.subheader("Business Profile")
     b_id = st.text_input("Business ID", value="MSME_001")
     age = st.number_input("Business Vintage (Years)", min_value=1, max_value=50, value=3)
+    employees = st.number_input("Number of Employees", min_value=1, value=5)
     
     st.divider()
     st.subheader("Compliance Check")
@@ -42,7 +43,8 @@ with col1:
     st.subheader("Financials (₹ Lakhs)")
     revenue = st.number_input("Annual Turnover", value=50.0)
     profit = st.number_input("Net Profit", value=8.5)
-    assets = st.number_input("Total Fixed Assets", value=30.0)
+    assets = st.number_input("Total Assets (Current + Fixed)", value=30.0)
+    fixed_assets = st.number_input("Total Fixed Assets", value=20.0)
     valuation = st.number_input("Current Valuation", value=60.0)
     debt = st.number_input("Existing Debt", value=5.0)
     requested = st.number_input("Loan Amount Requested", value=15.0)
@@ -50,9 +52,11 @@ with col1:
     payload = {
         "business_id": b_id,
         "age_years": age,
+        "employees": int(employees),
         "annual_revenue": revenue,
         "net_profit": profit,
         "total_assets": assets,
+        "fixed_assets": fixed_assets,
         "valuation": valuation,
         "existing_debt": debt,
         "cibil_score": cibil,
