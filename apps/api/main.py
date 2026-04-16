@@ -85,12 +85,19 @@ def predict(request: LoanRequest, db: Session = Depends(get_db)):
     features = MODELS['pipeline'].transform(input_df)
     
     # Approval Prediction
-    # Weighted CIBIL score internal logic (from user requirement)
-    weighted_cibil = (request.cibil_score * 0.6 + request.promoter_cibil * 0.4)
+    # Weighted CIBIL score internal logic (Common Sense: Business 70%, Promoter 30%)
+    weighted_cibil = (request.cibil_score * 0.7 + request.promoter_cibil * 0.3)
     prob_paid = float(MODELS['classifier'].predict_proba(features)[0][1])
     
-    # Final approval depends on both ML and hard thresholds
-    is_approved = prob_paid > 0.6 and weighted_cibil > 650
+    # Common Sense Thresholds:
+    # 1. Must be GST compliant
+    # 2. Weighted CIBIL must be at least 700 for prime rates, 650 for standard
+    # 3. Model probability must be > 0.65
+    is_approved = (
+        request.gst_compliant and 
+        weighted_cibil >= 650 and 
+        prob_paid > 0.65
+    )
     
     # SHAP Explainability
     shap_vals = MODELS['explainer'].shap_values(features)
@@ -106,6 +113,16 @@ def predict(request: LoanRequest, db: Session = Depends(get_db)):
     # Final Recommendation
     final_limit = min(recommended_limit, max_loan_cap)
     
+    # 4. Ball Park Validation (User requirement)
+    # Rejection if requesting way beyond eligibility (e.g. > 110% of final limit)
+    is_in_ballpark = request.requested_amount <= (final_limit * 1.1)
+    
+    if is_approved and not is_in_ballpark:
+        is_approved = False
+        remarks = f"REJECTED: Requested amount (₹{request.requested_amount:.1f}L) significantly exceeds calculated eligibility (₹{final_limit:.1f}L)."
+    else:
+        remarks = "Loan approved based on cash flow and credit health." if is_approved else "Loan rejected due to risk profiles."
+
     result = {
         "approval_probability": prob_paid,
         "is_approved": is_approved,
@@ -113,10 +130,10 @@ def predict(request: LoanRequest, db: Session = Depends(get_db)):
         "max_allowable_loan": max_loan_cap,
         "final_loan_recommendation": final_limit if is_approved else 0,
         "feature_importance": feature_importance,
-        "remarks": "Loan approved based on cash flow and credit health." if is_approved else "Loan rejected due to risk profiles."
+        "remarks": remarks
     }
     
-    # 3. Save to Database
+    # 5. Save to Database
     save_to_db(db, request, result)
     
     return result

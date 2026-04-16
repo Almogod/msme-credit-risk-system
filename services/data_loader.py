@@ -48,20 +48,38 @@ def generate_msme_data(n_samples=1000):
         # Loan Request
         requested_amount = annual_revenue * np.random.uniform(0.2, 0.5)
         
-        # Target: Approval (Refined Logic for India)
-        # Approval depends on CIBIL, Udyam, and DSCR
-        ebitda = annual_net_profit + interest_expense + (total_assets * 0.05) # proxy for ebitda
-        dscr = ebitda / (total_debt_service + 1e-6)
+        # Target: Approval (Common Sense calibrated logic for India)
+        # 1. CIBIL Impact (45%)
+        # 2. DSCR Impact (25%) - High penalty for < 1.0
+        # 3. GST Compliance (15%)
+        # 4. Business Vintage (10%)
+        # 5. Profitability (5%)
         
-        # Hard rejection logic embedded in target generation
-        if udyam_registered == 0 or cibil_score < 600:
+        # Hard rejection logic (Common Sense Gatekeepers)
+        if udyam_registered == 0 or cibil_score < 600 or gst_compliant == 0:
             approved = 0
             mis_status = 0
         else:
-            score = (cibil_score / 900) * 0.4 + (dscr / 2.0) * 0.3 + (business_age / 30) * 0.2 + (gst_compliant * 0.1)
-            approval_prob = 1 / (1 + np.exp(-(score - 0.5) * 10))
+            # Calibrated weights
+            cibil_norm = (cibil_score - 300) / 600
+            dscr_impact = min(dscr / 2.0, 1.2) # cap impact, but rewarding for > 1.25
+            age_impact = min(business_age / 10, 1.0) # stability reached at 10 years
+            
+            score = (
+                (cibil_norm * 0.45) + 
+                (dscr_impact * 0.25) + 
+                (gst_compliant * 0.15) + 
+                (age_impact * 0.10) + 
+                (net_profit_margin * 5 * 0.05) # Scaling 20% margin to 1.0
+            )
+            
+            # Sigmoid for probabilistic approval around the 0.6 threshold
+            approval_prob = 1 / (1 + np.exp(-(score - 0.6) * 12))
             approved = 1 if np.random.random() < approval_prob else 0
-            mis_status = 1 if np.random.random() < (approval_prob + 0.1) else 0
+            
+            # Default logic: Highly tied to lack of DSCR and over-leverage
+            default_risk = 1 / (1 + np.exp((score - 0.4) * 8))
+            mis_status = 1 if np.random.random() > default_risk else 0
             
         data.append({
             "business_id": f"MSME_{i:04d}",
