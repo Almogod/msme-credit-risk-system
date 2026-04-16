@@ -12,3 +12,5 @@ pytest==8.0.0
 faker==22.6.0
 python-multipart==0.0.6
 requests==2.31.0
+sqlalchemy==2.0.25
+sqlite3
