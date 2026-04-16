@@ -31,60 +31,59 @@ def generate_msme_data(n_samples=1000):
         promoter_cibil = np.random.randint(600, 850)
         
         # Assets & Liabilities
-        fixed_assets = annual_revenue * np.random.uniform(0.2, 0.8)
-        inventory_value = annual_revenue * np.random.uniform(0.1, 0.3)
-        total_assets = fixed_assets + inventory_value + (annual_revenue * 0.15)
+        fixed_assets = annual_revenue * np.random.uniform(0.3, 1.2) # Slightly wider range
+        inventory_value = annual_revenue * np.random.uniform(0.1, 0.4)
+        total_assets = fixed_assets + inventory_value + (annual_revenue * 0.2)
         
-        valuation = total_assets * np.random.uniform(1.2, 2.5) 
-        existing_debt = total_assets * np.random.uniform(0.1, 0.5)
+        valuation = total_assets * np.random.uniform(1.5, 3.0) 
+        existing_debt = total_assets * np.random.uniform(0.1, 0.4)
         
-        # Debt Service Components (for DSCR/ICR)
-        interest_rate = np.random.uniform(0.08, 0.18)
-        interest_expense = existing_debt * interest_rate
-        principal_repayment = existing_debt * 0.1 # assuming 10% principal annually
+        # Debt Service Components (Calibrated with Kaggle Patterns)
+        # 1. Interest Rate: 8% to 22% (Kaggle range)
+        # 2. Tenure: 12 to 84 months
+        interest_rate = np.random.uniform(0.08, 0.22)
+        tenure_months = np.random.choice([12, 24, 36, 48, 60, 72, 84])
+        
+        interest_expense = (existing_debt * interest_rate)
+        principal_repayment = (existing_debt / (tenure_months / 12)) if exists_debt else 0
         
         total_debt_service = interest_expense + principal_repayment
         
-        # Loan Request
-        requested_amount = annual_revenue * np.random.uniform(0.2, 0.5)
+        # Loan Request (Calibrated: Matches Kaggle's DTI and Amount distributions)
+        # Generally 2x to 5x of annual profit
+        requested_amount = (annual_net_profit * np.random.uniform(2, 5)) + (total_assets * 0.1)
+        requested_amount = max(requested_amount, 5) 
         
-        # Target: Approval (Common Sense calibrated logic for India)
-        # 1. CIBIL Impact (45%)
-        # 2. DSCR Impact (25%) - High penalty for < 1.0
-        # 3. GST Compliance (15%)
-        # 4. Business Vintage (10%)
-        # 5. Profitability (5%)
+        # Target: Approval (Kaggle-Infused logic)
+        ebitda = annual_net_profit + interest_expense + (total_assets * 0.05)
+        dscr = ebitda / (total_debt_service + 1e-6)
         
-        # Hard rejection logic (Common Sense Gatekeepers)
+        # Calibration weights
+        # Higher interest (Kaggle pattern) = Higher default risk
+        interest_risk = (interest_rate - 0.08) / 0.14 
+        
         if udyam_registered == 0 or cibil_score < 600 or gst_compliant == 0:
             approved = 0
             mis_status = 0
         else:
-            # Calibrated weights
             cibil_norm = (cibil_score - 300) / 600
-            dscr_impact = min(dscr / 2.0, 1.2) # cap impact, but rewarding for > 1.25
-            age_impact = min(business_age / 10, 1.0) # stability reached at 10 years
-            
             score = (
-                (cibil_norm * 0.45) + 
-                (dscr_impact * 0.25) + 
+                (cibil_norm * 0.40) + 
+                (min(dscr/2.0, 1.0) * 0.30) + 
                 (gst_compliant * 0.15) + 
-                (age_impact * 0.10) + 
-                (net_profit_margin * 5 * 0.05) # Scaling 20% margin to 1.0
+                (net_profit_margin * 5 * 0.15)
             )
             
-            # Sigmoid for probabilistic approval around the 0.6 threshold
-            approval_prob = 1 / (1 + np.exp(-(score - 0.6) * 12))
+            approval_prob = 1 / (1 + np.exp(-(score - 0.55) * 10))
             approved = 1 if np.random.random() < approval_prob else 0
             
-            # Default logic: Highly tied to lack of DSCR and over-leverage
-            default_risk = 1 / (1 + np.exp((score - 0.4) * 8))
+            # Default risk increases with high interest rates and low DSCR
+            default_risk = 1 / (1 + np.exp((score - 0.35 - (interest_risk * 0.2)) * 8))
             mis_status = 1 if np.random.random() > default_risk else 0
             
         data.append({
             "business_id": f"MSME_{i:04d}",
             "age_years": business_age,
-            "employees": employees,
             "annual_revenue": annual_revenue,
             "net_profit": annual_net_profit,
             "ebitda": ebitda,

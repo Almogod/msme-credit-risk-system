@@ -128,7 +128,7 @@ def predict(request: LoanRequest, db: Session = Depends(get_db)):
         "is_approved": is_approved,
         "recommended_limit": recommended_limit,
         "max_allowable_loan": max_loan_cap,
-        "final_loan_recommendation": final_limit if is_approved else 0,
+        "final_loan_recommendation": final_limit, # Always return eligibility
         "feature_importance": feature_importance,
         "remarks": remarks
     }
