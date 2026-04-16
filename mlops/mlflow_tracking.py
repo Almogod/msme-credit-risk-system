@@ -8,7 +8,7 @@ class MLFlowTracker:
     def __init__(self, experiment_name: str):
         self.experiment_name = experiment_name
         self.active_run = None
-        print(f"📡 MLflow Tracker initialized: Experiment '{experiment_name}'")
+        print(f"[TRACKER] MLflow Tracker initialized: Experiment '{experiment_name}'")
 
     def log_param(self, key: str, value):
         print(f"   [PARAM] {key}: {value}")

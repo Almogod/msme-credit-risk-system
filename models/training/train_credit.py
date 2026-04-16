@@ -11,7 +11,7 @@ sys.path.append(os.getcwd())
 from features.feature_store import load_and_process
 
 def train():
-    print("🚀 Training Credit Limit Model...")
+    print("[TRAIN] Training Credit Limit Model...")
     
     data_path = "data/raw/msme_loans.csv"
     if not os.path.exists(data_path):
@@ -46,8 +46,8 @@ def train():
     mae = mean_absolute_error(y_test, preds)
     r2 = r2_score(y_test, preds)
 
-    print(f"✅ Credit Model MAE: {mae:.2f}")
-    print(f"✅ Credit Model R2: {r2:.4f}")
+    print(f"[METRIC] Credit Model MAE: {mae:.2f}")
+    print(f"[METRIC] Credit Model R2: {r2:.4f}")
 
     # Save model
     os.makedirs("models/trained", exist_ok=True)

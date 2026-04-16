@@ -11,7 +11,7 @@ sys.path.append(os.getcwd())
 from features.feature_store import load_and_process
 
 def train():
-    print("🚀 Training Probability of Default (PD) Model...")
+    print("[TRAIN] Training Probability of Default (PD) Model...")
     
     data_path = "data/raw/msme_loans.csv"
     if not os.path.exists(data_path):
@@ -46,8 +46,8 @@ def train():
     auc = roc_auc_score(y_test, probs)
     brier = brier_score_loss(y_test, probs)
 
-    print(f"✅ PD Model AUC: {auc:.4f}")
-    print(f"✅ Brier Score (Calibration): {brier:.4f}")
+    print(f"[METRIC] PD Model AUC: {auc:.4f}")
+    print(f"[METRIC] Brier Score (Calibration): {brier:.4f}")
 
     # Save model
     os.makedirs("models/trained", exist_ok=True)

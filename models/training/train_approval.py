@@ -11,7 +11,7 @@ sys.path.append(os.getcwd())
 from features.feature_store import load_and_process
 
 def train():
-    print("🚀 Training Approval Model...")
+    print("[TRAIN] Training Approval Model...")
     
     # Check for raw data
     data_path = "data/raw/msme_loans.csv"
@@ -49,14 +49,13 @@ def train():
     preds = model.predict(X_test)
     acc = accuracy_score(y_test, preds)
 
-    print(f"✅ Approval Model Accuracy: {acc:.4f}")
-    print("\nClassification Report:")
+    print(f"[METRIC] Approval Model Accuracy: {acc:.4f}")
+    print("\n[REPORT] Classification Report:")
     print(classification_report(y_test, preds))
 
     # Save model
     os.makedirs("models/trained", exist_ok=True)
     joblib.dump(model, "models/trained/approval_model.pkl")
-    # Save the feature list for inference consistency
     joblib.dump(X.columns.tolist(), "models/trained/approval_features.joblib")
     
     print(f"Model saved to models/trained/approval_model.pkl")
