@@ -1,4 +1,6 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Security
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from jose import JWTError, jwt
 from pydantic import BaseModel
 import joblib
 import pandas as pd
@@ -14,6 +16,20 @@ from services.database import SessionLocal, LoanAssessment, init_db, get_db
 from services.credit_limit import CreditLimitService
 from features.feature_store import load_and_process
 
+# JWT Config Placeholder
+SECRET_KEY = os.getenv("JWT_SECRET", "super-secret-bank-key")
+ALGORITHM = "HS256"
+security = HTTPBearer()
+
+def get_current_user(credentials: HTTPAuthorizationCredentials = Security(security)):
+    """Placeholder for JWT validation."""
+    token = credentials.credentials
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except JWTError:
+        raise HTTPException(status_code=403, detail="Could not validate credentials")
+
 app = FastAPI(title="MSME Credit Risk MLOps API")
 
 # Initialize DB
@@ -22,6 +38,10 @@ init_db()
 # Globals to store models & services
 MODELS = {}
 LIMIT_SERVICE = None
+
+@app.get("/health")
+def health_check():
+    return {"status": "healthy"}
 
 @app.on_event("startup")
 def load_models():
@@ -99,21 +119,25 @@ def predict(request: LoanRequest, db: Session = Depends(get_db)):
     
     is_approved = is_eligible and is_in_ballpark
     
-    # Final Remarks
-    if not is_eligible:
-        remarks = "REJECTED: Risk profile or compliance check failed."
-    elif not is_in_ballpark:
-        remarks = f"REJECTED: Outsized request. Maximum eligibility is ₹{limit_results['final_limit']:.1f}L."
-    else:
-        remarks = "APPROVED: Strong financial health and credit profile."
+    # 5. Extract Decline Reasons
+    decline_reasons = []
+    if not request.gst_compliant:
+        decline_reasons.append("Non-compliant GST status")
+    if weighted_cibil < 650:
+        decline_reasons.append(f"Low weighted CIBIL score: {weighted_cibil:.0f}")
+    if prob_paid <= 0.65:
+        decline_reasons.append(f"Low approval probability: {prob_paid:.2f}")
+    if not is_in_ballpark:
+        decline_reasons.append("Requested amount exceeds calculated eligibility")
 
     result = {
         "approval_probability": prob_paid,
         "default_probability": prob_default,
         "is_approved": is_approved,
-        "recommended_limit": limit_results['recommended_limit'],
-        "max_allowable_loan": limit_results['max_loan_cap'],
+        "recommended_credit_limit": limit_results['recommended_limit'],
+        "max_loan_sanction": limit_results['max_loan_cap'],
         "final_loan_recommendation": limit_results['final_limit'],
+        "top_decline_reasons": decline_reasons if not is_approved else [],
         "remarks": remarks
     }
     
@@ -127,9 +151,10 @@ def create_rejection_response(req, msg):
         "approval_probability": 0.0,
         "default_probability": 1.0,
         "is_approved": False,
-        "recommended_limit": 0.0,
-        "max_allowable_loan": 0.0,
+        "recommended_credit_limit": 0.0,
+        "max_loan_sanction": 0.0,
         "final_loan_recommendation": 0.0,
+        "top_decline_reasons": [msg],
         "remarks": msg
     }
 

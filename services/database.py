@@ -4,12 +4,18 @@ from sqlalchemy.orm import sessionmaker
 import datetime
 import os
 
-DATABASE_URL = "sqlite:///./data/msme_credit_risk.db"
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./data/msme_credit_risk.db")
 
-# Ensure data directory exists
-os.makedirs("data", exist_ok=True)
+# Ensure data directory exists if using SQLite
+if DATABASE_URL.startswith("sqlite"):
+    os.makedirs("data", exist_ok=True)
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+# For SQLite, we need check_same_thread: False. For Postgres, we don't.
+if DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+else:
+    engine = create_engine(DATABASE_URL)
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 

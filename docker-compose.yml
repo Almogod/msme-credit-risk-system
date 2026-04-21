@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: msme_db
+    environment:
+      POSTGRES_USER: msme_user
+      POSTGRES_PASSWORD: msme_password
+      POSTGRES_DB: msme_credit_risk
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  mlflow:
+    build: .
+    container_name: msme_mlflow
+    ports:
+      - "5000:5000"
+    command: mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri sqlite:///mlflow.db --default-artifact-root ./mlruns
+    volumes:
+      - ./mlflow:/app/mlflow
+
+  api:
+    build: .
+    container_name: msme_api
+    depends_on:
+      - db
+      - mlflow
+    environment:
+      - DATABASE_URL=postgresql://msme_user:msme_password@db:5432/msme_credit_risk
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+    ports:
+      - "8000:8000"
+    command: uvicorn apps.api.main:app --host 0.0.0.0 --port 8000
+
+  ui:
+    build: .
+    container_name: msme_ui
+    depends_on:
+      - api
+    environment:
+      - API_URL=http://api:8000
+    ports:
+      - "8501:8501"
+    command: streamlit run apps/ui/dashboard.py --server.port 8501 --server.address 0.0.0.0
+
+volumes:
+  postgres_data:

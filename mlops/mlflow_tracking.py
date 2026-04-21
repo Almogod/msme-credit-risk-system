@@ -1,23 +1,37 @@
+import mlflow
 import os
 
 class MLFlowTracker:
     """
-    A lightweight wrapper for ML metadata tracking.
-    Can be expanded to use the actual mlflow library.
+    A production-grade wrapper for MLflow tracking.
     """
     def __init__(self, experiment_name: str):
+        self.tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
+        mlflow.set_tracking_uri(self.tracking_uri)
+        mlflow.set_experiment(experiment_name)
         self.experiment_name = experiment_name
         self.active_run = None
-        print(f"[TRACKER] MLflow Tracker initialized: Experiment '{experiment_name}'")
+
+    def start_run(self, run_name: str = None):
+        self.active_run = mlflow.start_run(run_name=run_name)
+        return self.active_run
+
+    def end_run(self):
+        if self.active_run:
+            mlflow.end_run()
+            self.active_run = None
 
     def log_param(self, key: str, value):
-        print(f"   [PARAM] {key}: {value}")
+        mlflow.log_param(key, value)
 
     def log_metric(self, key: str, value):
-        print(f"   [METRIC] {key}: {value:.4f}")
+        mlflow.log_metric(key, value)
 
     def log_model(self, model, artifact_path: str):
-        print(f"   [MODEL] Artifact saved at: {artifact_path}")
+        mlflow.sklearn.log_model(model, artifact_path)
+
+    def log_artifact(self, local_path: str):
+        mlflow.log_artifact(local_path)
 
 def get_tracker(experiment: str):
     return MLFlowTracker(experiment)
