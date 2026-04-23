@@ -129,16 +129,23 @@ def predict(request: LoanRequest, db: Session = Depends(get_db)):
         decline_reasons.append(f"Low approval probability: {prob_paid:.2f}")
     if not is_in_ballpark:
         decline_reasons.append("Requested amount exceeds calculated eligibility")
+    remarks = "APPROVED: Strong financial health and credit profile." if is_approved else f"REJECTED: {', '.join(decline_reasons)}"
+
+    # 5. Extract Feature Importance for Explainability
+    importances = MODELS['classifier'].feature_importances_
+    feature_names = MODELS['approval_cols']
+    fi_dict = {name: float(imp) for name, imp in zip(feature_names, importances)}
 
     result = {
         "approval_probability": prob_paid,
         "default_probability": prob_default,
         "is_approved": is_approved,
-        "recommended_credit_limit": limit_results['recommended_limit'],
-        "max_loan_sanction": limit_results['max_loan_cap'],
+        "recommended_limit": limit_results['recommended_limit'],
+        "max_allowable_loan": limit_results['max_loan_cap'],
         "final_loan_recommendation": limit_results['final_limit'],
         "top_decline_reasons": decline_reasons if not is_approved else [],
-        "remarks": remarks
+        "remarks": remarks,
+        "feature_importance": fi_dict
     }
     
     # 6. Save to Database

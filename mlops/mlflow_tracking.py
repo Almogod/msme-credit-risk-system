@@ -6,7 +6,7 @@ class MLFlowTracker:
     A production-grade wrapper for MLflow tracking.
     """
     def __init__(self, experiment_name: str):
-        self.tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
+        self.tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "sqlite:///mlflow.db")
         mlflow.set_tracking_uri(self.tracking_uri)
         mlflow.set_experiment(experiment_name)
         self.experiment_name = experiment_name
