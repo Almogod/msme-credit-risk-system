@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, Depends, Security
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.middleware.cors import CORSMiddleware
 from jose import JWTError, jwt
 from pydantic import BaseModel
 import joblib
@@ -31,6 +32,15 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Security(securi
         raise HTTPException(status_code=403, detail="Could not validate credentials")
 
 app = FastAPI(title="MSME Credit Risk MLOps API")
+
+# Enable CORS for the dashboard
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Initialize DB
 init_db()
